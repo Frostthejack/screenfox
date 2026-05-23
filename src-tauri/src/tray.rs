@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri::menu::{Menu, MenuItem, CheckMenuItem};
 use tauri::image::Image;
 use std::sync::atomic::{AtomicBool, Ordering};
