@@ -36,8 +36,8 @@ class WanderingAI {
       // mousedown: start drag, disable click-through
       container.addEventListener('mousedown', async () => {
         this.dragged = true;
-        // Disable click-through when dragging
-        await this.window.eval(`window.__DISABLE_CLICK_THROUGH__()`);
+        // Disable click-through when dragging using Tauri command
+        await this.window.invoke('disable_click_through');
         console.log('Drag started - click-through disabled');
       });
 
@@ -61,8 +61,8 @@ class WanderingAI {
       document.addEventListener('mouseup', async () => {
         if (this.dragged) {
           this.dragged = false;
-          // Re-enable click-through after drag
-          await this.window.eval(`window.__ENABLE_CLICK_THROUGH__()`);
+          // Re-enable click-through after drag using Tauri command
+          await this.window.invoke('enable_click_through');
           console.log('Drag ended - click-through re-enabled');
           // Sync position after user finishes dragging
           const newPos = await this.window.outerPosition();
@@ -113,7 +113,7 @@ class WanderingAI {
     const dt = Math.min((timestamp - this.prevTimestamp) / 1000, 0.1);
     this.prevTimestamp = timestamp;
 
-    // Change direction every 2–5 seconds when not following mouse
+    // Change direction every 2-5 seconds when not following mouse
     if (!this.followMouse && timestamp - this.lastChange > this.changeInterval) {
       this.lastChange = timestamp;
       this.pickTarget();
