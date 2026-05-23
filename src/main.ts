@@ -33,12 +33,37 @@ class WanderingAI {
 
     const container = document.getElementById('pet-container');
     if (container) {
-      container.addEventListener('mousedown', () => {
+      // mousedown: start drag, disable click-through
+      container.addEventListener('mousedown', async () => {
         this.dragged = true;
+        // Disable click-through when dragging
+        await this.window.eval(`window.__DISABLE_CLICK_THROUGH__()`);
+        console.log('Drag started - click-through disabled');
       });
+
+      // mousemove: follow cursor during drag
+      document.addEventListener('mousemove', async (e: MouseEvent) => {
+        if (this.dragged) {
+          // Move window to follow cursor
+          await this.window.setPosition(
+            new PhysicalPosition(e.screenX, e.screenY)
+          );
+          // Update current position
+          this.currentX = e.screenX;
+          this.currentY = e.screenY;
+        }
+        // Track mouse position for follow mode
+        this.mouseX = e.screenX;
+        this.mouseY = e.screenY;
+      });
+
+      // mouseup: stop drag, re-enable click-through
       document.addEventListener('mouseup', async () => {
         if (this.dragged) {
           this.dragged = false;
+          // Re-enable click-through after drag
+          await this.window.eval(`window.__ENABLE_CLICK_THROUGH__()`);
+          console.log('Drag ended - click-through re-enabled');
           // Sync position after user finishes dragging
           const newPos = await this.window.outerPosition();
           this.currentX = newPos.x;
@@ -94,6 +119,7 @@ class WanderingAI {
       this.pickTarget();
     }
 
+    // Pause AI movement during drag
     if (!this.dragged) {
       let targetX: number, targetY: number;
 
