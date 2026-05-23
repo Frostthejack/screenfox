@@ -1,62 +1,69 @@
-use tauri::{App, Manager, Wry};
-use tauri::menu::{Menu, MenuItem, CheckMenuItem, Submenu};
+use tauri::{AppHandle, Manager};
+use tauri::menu::{Menu, MenuItem, CheckMenuItem};
 use tauri::image::Image;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static PET_VISIBLE: AtomicBool = AtomicBool::new(true);
 static FOLLOW_MOUSE: AtomicBool = AtomicBool::new(false);
 
-pub fn create_tray_icon(app: &App) -> Result<Image<'_>, Box<dyn std::error::Error>> {
-    // Create a simple 32x32 orange fox icon from RGBA pixels
+pub fn create_tray_icon(_app: &AppHandle) -> Result<Image<'static>, Box<dyn std::error::Error>> {
+    // Create a simple 64x64 orange fox icon from RGBA pixels
     let size: u32 = 64;
-    let mut rgba: Vec<u8> = Vec::with_capacity((size * size * 4) as usize);
-    
+    let mut pixels: Vec<u8> = Vec::new();
+
     for y in 0..size {
         for x in 0..size {
-            // Simple orange circle as placeholder
             let cx = size as f32 / 2.0;
             let cy = size as f32 / 2.0;
             let r = size as f32 / 2.0 - 2.0;
             let dx = x as f32 - cx;
             let dy = y as f32 - cy;
             let dist = (dx * dx + dy * dy).sqrt();
-            
+
             if dist <= r {
-                // Orange fox color
-                rgba.extend_from_slice(&[255, 140, 0, 255]);
+                pixels.push(255);
+                pixels.push(140);
+                pixels.push(0);
+                pixels.push(255);
             } else {
-                rgba.extend_from_slice(&[0, 0, 0, 0]);
+                pixels.push(0);
+                pixels.push(0);
+                pixels.push(0);
+                pixels.push(0);
             }
         }
     }
-    
-    Ok(Image::new(&rgba, size, size))
+
+    Ok(Image::new_owned(pixels, size, size))
 }
 
-pub fn build_tray_menu(app: &App) -> Result<Menu<Wry>, Box<dyn std::error::Error>> {
-    let visible_toggle = CheckMenuItem::with_id(app, "toggle_visible", "Show Pet", true, PET_VISIBLE.load(Ordering::Relaxed))?;
-    let follow_toggle = CheckMenuItem::with_id(app, "toggle_follow", "Follow Mouse", true, FOLLOW_MOUSE.load(Ordering::Relaxed))?;
+pub fn build_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, Box<dyn std::error::Error>> {
+    let visible_toggle = CheckMenuItem::with_id(
+        app,
+        "toggle_visible",
+        "Show Pet",
+        true,
+        PET_VISIBLE.load(Ordering::Relaxed),
+        None::<&str>,
+    )?;
+    let follow_toggle = CheckMenuItem::with_id(
+        app,
+        "toggle_follow",
+        "Follow Mouse",
+        true,
+        FOLLOW_MOUSE.load(Ordering::Relaxed),
+        None::<&str>,
+    )?;
     let settings = MenuItem::with_id(app, "settings", "Settings...", true, None::<&str>)?;
     let about = MenuItem::with_id(app, "about", "About", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
-    let file_menu = Menu::with_items(app, &[
-        &visible_toggle,
-        &follow_toggle,
-        &settings,
-    ])?;
-
-    let menu = Menu::with_items(app, &[
-        &file_menu.title("ScreenFox")?,
-        &about,
-        &quit,
-    ])?;
+    let menu = Menu::with_items(app, &[&visible_toggle, &follow_toggle, &settings, &about, &quit])?;
 
     Ok(menu)
 }
 
-pub fn handle_tray_event(app: &App, event_id: &str) {
+pub fn handle_tray_event(app: &AppHandle, event_id: &str) {
     match event_id {
         "toggle_visible" => {
             let current = PET_VISIBLE.load(Ordering::Relaxed);

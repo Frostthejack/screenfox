@@ -1,4 +1,4 @@
-use tauri::{App, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
+use tauri::{App, WebviewWindow};
 use tauri::webview::WebviewWindowBuilder;
 
 #[cfg(target_os = "windows")]
@@ -50,10 +50,10 @@ pub fn set_click_through(window: &WebviewWindow, enabled: bool) -> Result<(), St
 fn set_click_through_internal(window: &WebviewWindow, enabled: bool) -> Result<(), String> {
     // Get the HWND from the window
     let hwnd = window.hwnd().map_err(|e| e.to_string())?;
-    
+
     // Get current extended window style
     let ex_style = unsafe { GetWindowLongPtrW(hwnd.0, GWL_EXSTYLE) };
-    
+
     let new_ex_style = if enabled {
         // Add WS_EX_TRANSPARENT to make window click-through
         ex_style | WS_EX_TRANSPARENT.0 as isize
@@ -61,13 +61,13 @@ fn set_click_through_internal(window: &WebviewWindow, enabled: bool) -> Result<(
         // Remove WS_EX_TRANSPARENT to capture mouse events
         ex_style & !(WS_EX_TRANSPARENT.0 as isize)
     };
-    
+
     unsafe {
         SetWindowLongPtrW(hwnd.0, GWL_EXSTYLE, new_ex_style);
     }
-    
+
     CLICK_THROUGH_ENABLED.store(enabled, Ordering::SeqCst);
-    
+
     Ok(())
 }
 
@@ -90,4 +90,27 @@ fn set_click_through_internal(_window: &WebviewWindow, enabled: bool) -> Result<
 /// Check if click-through is currently enabled
 pub fn is_click_through_enabled() -> bool {
     CLICK_THROUGH_ENABLED.load(Ordering::SeqCst)
+}
+
+/// Get the current mouse position relative to the primary monitor
+/// Returns (x, y) coordinates
+#[cfg(target_os = "windows")]
+pub fn get_mouse_pos() -> Result<(i32, i32), String> {
+    use windows::{
+        Win32::Foundation::POINT,
+        Win32::UI::WindowsAndMessaging::GetCursorPos,
+    };
+
+    let mut point = POINT { x: 0, y: 0 };
+    unsafe {
+        GetCursorPos(&mut point);
+    }
+    Ok((point.x, point.y))
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn get_mouse_pos() -> Result<(i32, i32), String> {
+    // For non-Windows platforms, return (0, 0) as a placeholder
+    // Actual implementation would use platform-specific APIs
+    Ok((0, 0))
 }

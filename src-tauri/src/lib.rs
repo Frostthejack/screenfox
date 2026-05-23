@@ -2,7 +2,6 @@ mod tray;
 mod window;
 
 use tauri::Manager;
-use tauri::image::Image;
 use tokio::time::{sleep, Duration};
 use std::sync::{Arc, Mutex};
 
@@ -55,18 +54,36 @@ async fn set_click_through(
     Ok(())
 }
 
+/// Tauri command: enable click-through (exposed for frontend drag-and-drop)
+#[tauri::command]
+async fn enable_click_through(window: tauri::WebviewWindow) -> Result<(), String> {
+    window::set_click_through(&window, true)
+}
+
+/// Tauri command: disable click-through (exposed for frontend drag-and-drop)
+#[tauri::command]
+async fn disable_click_through(window: tauri::WebviewWindow) -> Result<(), String> {
+    window::set_click_through(&window, false)
+}
+
+/// Tauri command: get the current mouse position
+#[tauri::command]
+async fn get_mouse_pos() -> Result<(i32, i32), String> {
+    window::get_mouse_pos()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(Arc::new(Mutex::new(WatchdogState::new())))
-        .invoke_handler(tauri::generate_handler![set_click_through])
+        .invoke_handler(tauri::generate_handler![set_click_through, enable_click_through, disable_click_through, get_mouse_pos])
         .setup(|app| {
             // Create the tray icon
-            let tray_icon = tray::create_tray_icon(app)?;
+            let tray_icon = tray::create_tray_icon(app.handle())?;
 
             // Build the tray menu
-            let menu = tray::build_tray_menu(app)?;
+            let menu = tray::build_tray_menu(app.handle())?;
 
             // Create the tray
             tauri::tray::TrayIconBuilder::with_id("main")
@@ -74,7 +91,7 @@ pub fn run() {
                 .tooltip("ScreenFox")
                 .menu(&menu)
                 .on_menu_event(|app, event| {
-                    tray::handle_tray_event(app, &event.id.0);
+                    tray::handle_tray_event(app.app_handle(), &event.id.0);
                 })
                 .build(app)?;
 
