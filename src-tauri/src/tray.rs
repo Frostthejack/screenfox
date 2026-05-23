@@ -3,8 +3,8 @@ use tauri::menu::{Menu, MenuItem, CheckMenuItem};
 use tauri::image::Image;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-static PET_VISIBLE: AtomicBool = AtomicBool::new(true);
-static FOLLOW_MOUSE: AtomicBool = AtomicBool::new(false);
+pub static PET_VISIBLE: AtomicBool = AtomicBool::new(true);
+pub static FOLLOW_MOUSE: AtomicBool = AtomicBool::new(false);
 
 pub fn create_tray_icon(_app: &AppHandle) -> Result<Image<'static>, Box<dyn std::error::Error>> {
     // Create a simple 64x64 orange fox icon from RGBA pixels
@@ -67,7 +67,8 @@ pub fn handle_tray_event(app: &AppHandle, event_id: &str) {
     match event_id {
         "toggle_visible" => {
             let current = PET_VISIBLE.load(Ordering::Relaxed);
-            PET_VISIBLE.store(!current, Ordering::Relaxed);
+            let new = !current;
+            PET_VISIBLE.store(new, Ordering::Relaxed);
             if let Some(window) = app.get_webview_window("pet") {
                 if current {
                     let _ = window.hide();
@@ -75,10 +76,13 @@ pub fn handle_tray_event(app: &AppHandle, event_id: &str) {
                     let _ = window.show();
                 }
             }
+            let _ = app.emit("tray:toggle-visible", new);
         }
         "toggle_follow" => {
             let current = FOLLOW_MOUSE.load(Ordering::Relaxed);
-            FOLLOW_MOUSE.store(!current, Ordering::Relaxed);
+            let new = !current;
+            FOLLOW_MOUSE.store(new, Ordering::Relaxed);
+            let _ = app.emit("tray:toggle-follow", new);
         }
         "settings" => {
             // TODO: Open settings window

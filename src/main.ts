@@ -1,5 +1,45 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { PhysicalPosition } from '@tauri-apps/api/dpi';
+import { listen } from '@tauri-apps/api/event';
+
+// ── Settings (persisted to localStorage) ─────────────────────────────────────
+
+interface Settings {
+    petSize: 'small' | 'medium' | 'large';
+    moveSpeed: 'slow' | 'medium' | 'fast';
+    followDist: 'close' | 'medium' | 'far';
+    soundEffects: boolean;
+}
+
+const DEFAULT_SETTINGS: Settings = {
+    petSize: 'medium',
+    moveSpeed: 'medium',
+    followDist: 'medium',
+    soundEffects: false,
+};
+
+function loadSettings(): Settings {
+    try {
+        const raw = localStorage.getItem('screenfox-settings');
+        if (raw) {
+            return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+        }
+    } catch (e) {
+        console.error('Failed to load settings:', e);
+    }
+    return { ...DEFAULT_SETTINGS };
+}
+
+function applySettings(s: Settings): void {
+    // Apply pet size
+    const fox = document.getElementById('fox');
+    if (fox) {
+        const sizeMap = { small: 80, medium: 128, large: 176 };
+        const px = sizeMap[s.petSize];
+        fox.setAttribute('width', String(px));
+        fox.setAttribute('height', String(px));
+    }
+}
 
 // ── Pet State Machine ──────────────────────────────────────────────────────
 
@@ -137,6 +177,13 @@ class WanderingAI {
   private stateMachine: PetStateMachine;
 
   constructor() {
+    // Load persisted settings
+    const settings = loadSettings();
+
+    // Apply movement speed from settings
+    const speedMap = { slow: 60, medium: 120, fast: 200 };
+    this.speed = speedMap[settings.moveSpeed];
+
     this.stateMachine = new PetStateMachine(
       () => this.currentX,
       () => this.currentY,
@@ -145,6 +192,13 @@ class WanderingAI {
       this.onStateChange(oldState, newState);
     });
     this.init();
+
+    // Apply pet size after DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => applySettings(settings));
+    } else {
+      applySettings(settings);
+    }
   }
 
   private onStateChange(oldState: PetState, newState: PetState) {
@@ -363,4 +417,27 @@ class WanderingAI {
   }
 }
 
-new WanderingAI();
+(window as any).__WANDERING_AI__ = new WanderingAI();
+
+// ── Tray Event Listeners ───────────────────────────────────────────────────
+
+listen<boolean>('tray:toggle-visible', (event) => {
+  const visible = event.payload;
+  const container = document.getElementById('pet-container');
+  if (container) {
+    container.style.display = visible ? 'flex' : 'none';
+  }
+  console.log('Tray: pet visible =', visible);
+});
+
+listen<boolean>('tray:toggle-follow', (event) => {
+  const follow = event.payload;
+  const ai = (window as any).__WANDERING_AI__;
+  if (ai && typeof ai.toggleFollowMouse === 'function') {
+    // Only toggle if current state doesn't match desired state
+    if (ai.followMouse !== follow) {
+      ai.toggleFollowMouse();
+    }
+  }
+  console.log('Tray: follow mouse =', follow);
+});

@@ -1,3 +1,4 @@
+mod settings;
 mod tray;
 mod window;
 
@@ -72,12 +73,26 @@ async fn get_mouse_pos() -> Result<(i32, i32), String> {
     window::get_mouse_pos()
 }
 
+/// Tauri command: get whether the pet is currently visible
+#[tauri::command]
+async fn is_pet_visible() -> Result<bool, String> {
+    use std::sync::atomic::Ordering;
+    Ok(tray::PET_VISIBLE.load(Ordering::Relaxed))
+}
+
+/// Tauri command: get whether follow-mouse mode is enabled
+#[tauri::command]
+async fn is_follow_mode() -> Result<bool, String> {
+    use std::sync::atomic::Ordering;
+    Ok(tray::FOLLOW_MOUSE.load(Ordering::Relaxed))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(Arc::new(Mutex::new(WatchdogState::new())))
-        .invoke_handler(tauri::generate_handler![set_click_through, enable_click_through, disable_click_through, get_mouse_pos])
+        .invoke_handler(tauri::generate_handler![set_click_through, enable_click_through, disable_click_through, get_mouse_pos, is_pet_visible, is_follow_mode])
         .setup(|app| {
             // Create the tray icon
             let tray_icon = tray::create_tray_icon(app.handle())?;
@@ -97,6 +112,9 @@ pub fn run() {
 
             // Create the pet window
             window::create_pet_window(app)?;
+
+            // Create the settings window (hidden by default)
+            settings::create_settings_window(app.handle())?;
 
             Ok(())
         })
