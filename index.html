@@ -17,6 +17,7 @@
             overflow: hidden;
             background: transparent;
             pointer-events: none;
+            user-select: none;
         }
         
         #pet-container {
@@ -29,8 +30,8 @@
             cursor: grab;
         }
         
-        #pet-container:hover,
-        #pet-container.dragging {
+        /* Enable interaction when mouse is over the pet window */
+        #pet-container.interactive {
             pointer-events: auto;
         }
         
@@ -48,71 +49,53 @@
 <body>
     <div id="pet-container">
         <svg id="fox" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-            <!-- Tail -->
-            <g id="tail">
-                <path d="M96 88 C108 84 116 72 112 60 C108 48 96 44 88 52 C92 56 96 64 96 72 C96 80 92 84 96 88 Z" fill="#FF8C00" stroke="#CC7200" stroke-width="1"/>
-                <path d="M92 76 C100 74 104 68 102 62 C100 56 92 54 86 58 C88 60 92 64 92 70 C92 74 89 75 92 76 Z" fill="#FFB347"/>
-            </g>
-            
-            <!-- Body -->
-            <g id="body">
-                <ellipse cx="64" cy="78" rx="32" ry="24" fill="#FF8C00" stroke="#CC7200" stroke-width="1"/>
-                <ellipse cx="64" cy="82" rx="28" ry="20" fill="#FFB347"/>
-                <path d="M48 78 Q36 82 32 72 Q36 68 48 72 Z" fill="#FF8C00"/>
-                <path d="M80 78 Q92 82 96 72 Q92 68 80 72 Z" fill="#FF8C00"/>
-            </g>
-            
-            <!-- Legs -->
-            <g id="legs">
-                <ellipse cx="52" cy="108" rx="6" ry="4" fill="#FF8C00"/>
-                <ellipse cx="76" cy="108" rx="6" ry="4" fill="#FF8C00"/>
-            </g>
-            
-            <!-- Head -->
-            <g id="head">
-                <circle cx="64" cy="48" r="24" fill="#FF8C00" stroke="#CC7200" stroke-width="1"/>
-                <circle cx="64" cy="44" r="20" fill="#FFB347"/>
-            </g>
-            
+            <!-- Placeholder fox shape — will be replaced by agent CLIs -->
+            <circle cx="64" cy="64" r="48" fill="#FF8C00" />
+            <circle cx="44" cy="52" r="8" fill="white" />
+            <circle cx="84" cy="52" r="8" fill="white" />
+            <circle cx="44" cy="52" r="4" fill="black" />
+            <circle cx="84" cy="52" r="4" fill="black" />
+            <ellipse cx="64" cy="72" rx="6" ry="4" fill="#333" />
             <!-- Ears -->
-            <g id="ears">
-                <polygon points="52,24 44,4 60,20" fill="#FF8C00" stroke="#CC7200" stroke-width="1"/>
-                <polygon points="76,24 84,4 68,20" fill="#FF8C00" stroke="#CC7200" stroke-width="1"/>
-                <polygon points="54,22 48,10 58,18" fill="#FFB347"/>
-                <polygon points="74,22 80,10 68,18" fill="#FFB347"/>
-            </g>
-            
-            <!-- Face -->
-            <g id="face">
-                <!-- Eyes -->
-                <g id="eyes">
-                    <circle cx="56" cy="46" r="6" fill="white"/>
-                    <circle cx="72" cy="46" r="6" fill="white"/>
-                    <circle cx="56" cy="46" r="3" fill="#222"/>
-                    <circle cx="72" cy="46" r="3" fill="#222"/>
-                    <circle cx="55" cy="45" r="1.5" fill="white"/>
-                    <circle cx="71" cy="45" r="1.5" fill="white"/>
-                </g>
-                
-                <!-- Nose -->
-                <g id="nose">
-                    <path d="M60 54 Q64 58 68 54 Q64 52 60 54 Z" fill="#333"/>
-                    <ellipse cx="64" cy="55" rx="2" ry="1" fill="black"/>
-                </g>
-                
-                <!-- Mouth -->
-                <g id="mouth">
-                    <path d="M58 60 Q64 64 70 60" stroke="#555" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-                </g>
-                
-                <!-- Cheeks -->
-                <g id="cheeks">
-                    <circle cx="44" cy="52" r="6" fill="#FFB347" opacity="0.5"/>
-                    <circle cx="84" cy="52" r="6" fill="#FFB347" opacity="0.5"/>
-                </g>
-            </g>
+            <polygon points="32,32 24,8 48,28" fill="#FF8C00" />
+            <polygon points="96,32 104,8 80,28" fill="#FF8C00" />
+            <polygon points="34,28 28,14 44,26" fill="#FFB347" />
+            <polygon points="94,28 100,14 84,26" fill="#FFB347" />
         </svg>
     </div>
+
+    <!-- Click-through toggle script: mouseenter/mouseleave -->
+    <script>
+        // Toggle click-through via CSS hover and communicate with Rust backend
+        // When mouse enters the pet area, make it interactive
+        // When mouse leaves, restore click-through
+
+        const container = document.getElementById('pet-container');
+
+        // Track whether mouse is over the pet window
+        let mouseInside = false;
+
+        container.addEventListener('mouseenter', () => {
+            mouseInside = true;
+            container.classList.add('interactive');
+            console.log('Mouse entered pet — interactive mode ON');
+        });
+
+        container.addEventListener('mouseleave', () => {
+            mouseInside = false;
+            container.classList.remove('interactive');
+            console.log('Mouse left pet — interactive mode OFF');
+        });
+
+        // Detect when mouse leaves the entire window
+        document.addEventListener('mouseleave', () => {
+            if (mouseInside) {
+                mouseInside = false;
+                container.classList.remove('interactive');
+            }
+        });
+    </script>
+
     <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
