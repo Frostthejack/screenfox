@@ -2,6 +2,7 @@ mod settings;
 mod tray;
 mod window;
 
+use settings::{get_settings, update_settings};
 use tauri::Manager;
 use tokio::time::{sleep, Duration};
 use std::sync::{Arc, Mutex};
@@ -92,8 +93,17 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(Arc::new(Mutex::new(WatchdogState::new())))
-        .invoke_handler(tauri::generate_handler![set_click_through, enable_click_through, disable_click_through, get_mouse_pos, is_pet_visible, is_follow_mode])
+        .invoke_handler(tauri::generate_handler![set_click_through, enable_click_through, disable_click_through, get_mouse_pos, is_pet_visible, is_follow_mode, get_settings, update_settings])
         .setup(|app| {
+            // Initialize settings state — load from (or create) app data dir
+            let app_data_dir = app.path().app_data_dir()
+                .unwrap_or_else(|_| std::path::PathBuf::from("."));
+            std::fs::create_dir_all(&app_data_dir).ok();
+            let settings_state = settings::SettingsState::load(
+                app_data_dir.join("settings.json"),
+            );
+            app.manage(settings_state);
+
             // Create the tray icon
             let tray_icon = tray::create_tray_icon(app.handle())?;
 

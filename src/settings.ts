@@ -1,4 +1,6 @@
-// Settings panel logic — persists to localStorage, loads on startup
+// Settings panel logic — persists via Tauri backend, propagates to pet window in real-time
+
+import { invoke } from '@tauri-apps/api/core';
 
 interface Settings {
     petSize: 'small' | 'medium' | 'large';
@@ -14,24 +16,19 @@ const DEFAULTS: Settings = {
     soundEffects: false,
 };
 
-const STORAGE_KEY = 'screenfox-settings';
-
-function loadSettings(): Settings {
+async function loadSettings(): Promise<Settings> {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            return { ...DEFAULTS, ...parsed };
-        }
+        const s = await invoke<Settings>('get_settings');
+        return { ...DEFAULTS, ...s };
     } catch (e) {
         console.error('Failed to load settings:', e);
+        return { ...DEFAULTS };
     }
-    return { ...DEFAULTS };
 }
 
-function saveSettings(settings: Settings): void {
+async function saveSettings(settings: Settings): Promise<void> {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+        await invoke('update_settings', { settings });
         showStatus('Settings saved!');
     } catch (e) {
         console.error('Failed to save settings:', e);
@@ -60,8 +57,8 @@ function setRadioValue(name: string, value: string): void {
     if (el) el.checked = true;
 }
 
-function init(): void {
-    const settings = loadSettings();
+async function init(): Promise<void> {
+    const settings = await loadSettings();
 
     // Apply loaded settings to UI
     setRadioValue('petSize', settings.petSize);
@@ -70,42 +67,35 @@ function init(): void {
     const soundEl = document.getElementById('soundEffects') as HTMLInputElement;
     if (soundEl) soundEl.checked = settings.soundEffects;
 
+    // Helper: read all current UI values and save them
+    function currentFromUI(): Settings {
+        return {
+            petSize: (getRadioValue('petSize') || settings.petSize) as Settings['petSize'],
+            moveSpeed: (getRadioValue('moveSpeed') || settings.moveSpeed) as Settings['moveSpeed'],
+            followDist: (getRadioValue('followDist') || settings.followDist) as Settings['followDist'],
+            soundEffects: soundEl ? soundEl.checked : settings.soundEffects,
+        };
+    }
+
     // Listen for changes on all radio buttons
     document.querySelectorAll<HTMLInputElement>('input[type="radio"]').forEach((input) => {
-        input.addEventListener('change', () => {
-            const current = loadSettings();
-            const name = input.name;
-            const value = input.value;
-
-            switch (name) {
-                case 'petSize':
-                    current.petSize = value as Settings['petSize'];
-                    break;
-                case 'moveSpeed':
-                    current.moveSpeed = value as Settings['moveSpeed'];
-                    break;
-                case 'followDist':
-                    current.followDist = value as Settings['followDist'];
-                    break;
-            }
-            saveSettings(current);
+        input.addEventListener('change', async () => {
+            await saveSettings(currentFromUI());
         });
     });
 
     // Listen for sound effects toggle
     if (soundEl) {
-        soundEl.addEventListener('change', () => {
-            const current = loadSettings();
-            current.soundEffects = soundEl.checked;
-            saveSettings(current);
+        soundEl.addEventListener('change', async () => {
+            await saveSettings(currentFromUI());
         });
     }
 
     // Reset button
     const resetBtn = document.getElementById('resetBtn');
     if (resetBtn) {
-        resetBtn.addEventListener('click', () => {
-            saveSettings({ ...DEFAULTS });
+        resetBtn.addEventListener('click', async () => {
+            await saveSettings({ ...DEFAULTS });
             setRadioValue('petSize', DEFAULTS.petSize);
             setRadioValue('moveSpeed', DEFAULTS.moveSpeed);
             setRadioValue('followDist', DEFAULTS.followDist);
@@ -114,7 +104,7 @@ function init(): void {
         });
     }
 
-    // Expose settings globally so the pet window can read them
+    // Expose settings globally (for debugging)
     (window as any).__SCREENFOX_SETTINGS__ = settings;
 }
 

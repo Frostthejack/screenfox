@@ -1,6 +1,7 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { PhysicalPosition } from '@tauri-apps/api/dpi';
 import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 
 // ── Settings (persisted to localStorage) ─────────────────────────────────────
 
@@ -9,25 +10,6 @@ interface Settings {
     moveSpeed: 'slow' | 'medium' | 'fast';
     followDist: 'close' | 'medium' | 'far';
     soundEffects: boolean;
-}
-
-const DEFAULT_SETTINGS: Settings = {
-    petSize: 'medium',
-    moveSpeed: 'medium',
-    followDist: 'medium',
-    soundEffects: false,
-};
-
-function loadSettings(): Settings {
-    try {
-        const raw = localStorage.getItem('screenfox-settings');
-        if (raw) {
-            return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-        }
-    } catch (e) {
-        console.error('Failed to load settings:', e);
-    }
-    return { ...DEFAULT_SETTINGS };
 }
 
 function applySettings(s: Settings): void {
@@ -177,13 +159,6 @@ class WanderingAI {
   private stateMachine: PetStateMachine;
 
   constructor() {
-    // Load persisted settings
-    const settings = loadSettings();
-
-    // Apply movement speed from settings
-    const speedMap = { slow: 60, medium: 120, fast: 200 };
-    this.speed = speedMap[settings.moveSpeed];
-
     this.stateMachine = new PetStateMachine(
       () => this.currentX,
       () => this.currentY,
@@ -192,13 +167,18 @@ class WanderingAI {
       this.onStateChange(oldState, newState);
     });
     this.init();
+  }
 
-    // Apply pet size after DOM is ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => applySettings(settings));
-    } else {
-      applySettings(settings);
-    }
+  /// Apply settings to this AI instance and the pet visuals
+  applySettings(s: Settings): void {
+    const speedMap: Record<string, number> = { slow: 60, medium: 120, fast: 200 };
+    this.speed = speedMap[s.moveSpeed] ?? 120;
+
+    const distMap: Record<string, number> = { close: 100, medium: 200, far: 300 };
+    this.minFollowDistance = distMap[s.followDist] ?? 200;
+
+    // Apply visual settings (size)
+    applySettings(s);
   }
 
   private onStateChange(oldState: PetState, newState: PetState) {
@@ -245,6 +225,14 @@ class WanderingAI {
   }
 
   private async init() {
+    // Load settings from Rust backend and apply
+    try {
+      const s = await invoke<Settings>('get_settings');
+      this.applySettings(s);
+    } catch (e) {
+      console.error('Failed to load settings, using defaults:', e);
+    }
+
     const pos = await this.window.outerPosition();
     this.currentX = pos.x;
     this.currentY = pos.y;
@@ -417,7 +405,16 @@ class WanderingAI {
   }
 }
 
-(window as any).__WANDERING_AI__ = new WanderingAI();
+const _wanderingAI = new WanderingAI();
+(window as any).__WANDERING_AI__ = _wanderingAI;
+
+// ── Settings Event Listener ───────────────────────────────────────────────
+// When the settings panel saves changes, apply them to the pet in real-time
+
+listen<Settings>('settings:changed', (event) => {
+  _wanderingAI.applySettings(event.payload);
+  console.log('Settings updated:', event.payload);
+});
 
 // ── Tray Event Listeners ───────────────────────────────────────────────────
 
