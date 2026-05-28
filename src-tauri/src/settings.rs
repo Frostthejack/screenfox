@@ -12,6 +12,7 @@ pub struct Settings {
     pub move_speed: String,
     pub follow_dist: String,
     pub sound_effects: bool,
+    pub volume: f64,
 }
 
 impl Default for Settings {
@@ -21,6 +22,7 @@ impl Default for Settings {
             move_speed: "medium".to_string(),
             follow_dist: "medium".to_string(),
             sound_effects: false,
+            volume: 0.7,
         }
     }
 }

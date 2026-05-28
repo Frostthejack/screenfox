@@ -7,6 +7,7 @@ interface Settings {
     moveSpeed: 'slow' | 'medium' | 'fast';
     followDist: 'close' | 'medium' | 'far';
     soundEffects: boolean;
+    volume: number;
 }
 
 const DEFAULTS: Settings = {
@@ -14,6 +15,7 @@ const DEFAULTS: Settings = {
     moveSpeed: 'medium',
     followDist: 'medium',
     soundEffects: false,
+    volume: 0.7,
 };
 
 async function loadSettings(): Promise<Settings> {
@@ -66,6 +68,12 @@ async function init(): Promise<void> {
     setRadioValue('followDist', settings.followDist);
     const soundEl = document.getElementById('soundEffects') as HTMLInputElement;
     if (soundEl) soundEl.checked = settings.soundEffects;
+    const volumeSlider = document.getElementById('volumeSlider') as HTMLInputElement;
+    const volumeValue = document.getElementById('volumeValue');
+    if (volumeSlider && volumeValue) {
+        volumeSlider.value = String(Math.round(settings.volume * 100));
+        volumeValue.textContent = Math.round(settings.volume * 100) + '%';
+    }
 
     // Helper: read all current UI values and save them
     function currentFromUI(): Settings {
@@ -74,6 +82,7 @@ async function init(): Promise<void> {
             moveSpeed: (getRadioValue('moveSpeed') || settings.moveSpeed) as Settings['moveSpeed'],
             followDist: (getRadioValue('followDist') || settings.followDist) as Settings['followDist'],
             soundEffects: soundEl ? soundEl.checked : settings.soundEffects,
+            volume: volumeSlider ? parseInt(volumeSlider.value, 10) / 100 : settings.volume,
         };
     }
 
@@ -91,6 +100,16 @@ async function init(): Promise<void> {
         });
     }
 
+    // Listen for volume slider changes
+    if (volumeSlider) {
+        volumeSlider.addEventListener('input', () => {
+            if (volumeValue) volumeValue.textContent = volumeSlider.value + '%';
+        });
+        volumeSlider.addEventListener('change', async () => {
+            await saveSettings(currentFromUI());
+        });
+    }
+
     // Reset button
     const resetBtn = document.getElementById('resetBtn');
     if (resetBtn) {
@@ -100,6 +119,8 @@ async function init(): Promise<void> {
             setRadioValue('moveSpeed', DEFAULTS.moveSpeed);
             setRadioValue('followDist', DEFAULTS.followDist);
             if (soundEl) soundEl.checked = DEFAULTS.soundEffects;
+            if (volumeSlider) volumeSlider.value = String(Math.round(DEFAULTS.volume * 100));
+            if (volumeValue) volumeValue.textContent = Math.round(DEFAULTS.volume * 100) + '%';
             showStatus('Reset to defaults');
         });
     }
