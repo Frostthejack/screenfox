@@ -37,7 +37,7 @@ class PetStateMachine {
   private lastInteraction = performance.now();
   private idleSince = performance.now();
   private readonly idleToWalkDelay = 5000;    // 5s
-  private readonly idleToSleepDelay = 30000;  // 30s
+  private readonly idleToSleepDelay = 10000;  // 10s
   private readonly mouseProximity = 200;       // px distance to trigger PLAYING
   private mouseX = 0;
   private mouseY = 0;
@@ -71,7 +71,9 @@ class PetStateMachine {
     this.mouseX = x;
     this.mouseY = y;
     this.lastInteraction = performance.now();
-    if (this.state !== PetState.PLAYING && this.state !== PetState.SLEEPING) {
+    if (this.state === PetState.SLEEPING) {
+      this.transition(PetState.PLAYING);
+    } else if (this.state !== PetState.PLAYING) {
       this.transition(PetState.PLAYING);
     }
   }

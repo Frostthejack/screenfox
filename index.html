@@ -58,6 +58,15 @@
 
         #pet-container.state-sleeping #fox {
             filter: brightness(0.7) saturate(0.5);
+            animation: pet-sleep-breathe 3s ease-in-out infinite;
+        }
+
+        /* Sleeping: closed eyes overlay */
+        #pet-container.state-sleeping .eye-pupil {
+            display: none;
+        }
+        #pet-container.state-sleeping .eye-closed {
+            display: inline;
         }
 
         #pet-container.state-playing #fox {
@@ -80,6 +89,11 @@
             50% { opacity: 1; transform: translateY(-12px) scale(1); }
             100% { opacity: 0; transform: translateY(-24px) scale(1.2); }
         }
+
+        @keyframes pet-sleep-breathe {
+            0%, 100% { transform: scale(0.95); }
+            50% { transform: scale(1.05); }
+        }
     </style>
 </head>
 <body>
@@ -87,10 +101,13 @@
         <svg id="fox" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
             <!-- Placeholder fox shape — will be replaced by agent CLIs -->
             <circle cx="64" cy="64" r="48" fill="#FF8C00" />
-            <circle cx="44" cy="52" r="8" fill="white" />
-            <circle cx="84" cy="52" r="8" fill="white" />
-            <circle cx="44" cy="52" r="4" fill="black" />
-            <circle cx="84" cy="52" r="4" fill="black" />
+            <!-- Eyes -->
+            <circle cx="44" cy="52" r="8" fill="white" class="eye-white" />
+            <circle cx="44" cy="52" r="4" fill="black" class="eye-pupil" />
+            <path d="M38 52 Q44 48 50 52" stroke="black" stroke-width="2" fill="none" class="eye-closed" style="display:none" />
+            <circle cx="84" cy="52" r="8" fill="white" class="eye-white" />
+            <circle cx="84" cy="52" r="4" fill="black" class="eye-pupil" />
+            <path d="M78 52 Q84 48 90 52" stroke="black" stroke-width="2" fill="none" class="eye-closed" style="display:none" />
             <ellipse cx="64" cy="72" rx="6" ry="4" fill="#333" />
             <!-- Ears -->
             <polygon points="32,32 24,8 48,28" fill="#FF8C00" />
