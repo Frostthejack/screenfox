@@ -100,7 +100,9 @@ pub fn handle_tray_event(app: &AppHandle, event_id: &str) {
             let _ = app.emit("tray:toggle-mute", new);
         }
         "settings" => {
-            // TODO: Open settings window
+            if let Err(e) = crate::settings::create_settings_window(app) {
+                eprintln!("Failed to open settings window: {}", e);
+            }
         }
         "about" => {
             let _ = app.emit("tray:about", "");
