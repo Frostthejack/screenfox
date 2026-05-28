@@ -114,3 +114,66 @@ pub fn get_mouse_pos() -> Result<(i32, i32), String> {
     // Actual implementation would use platform-specific APIs
     Ok((0, 0))
 }
+
+/// DPI-aware monitor info for the current window position
+/// Returns the monitor index and its DPI scale factor
+#[allow(dead_code)]
+#[cfg(target_os = "windows")]
+pub fn get_monitor_dpi_for_window(window: &WebviewWindow) -> Result<f64, String> {
+    use windows::{
+        Win32::Graphics::Gdi::{MonitorFromWindow, MONITOR_DEFAULTTONEAREST},
+        Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI},
+    };
+
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?;
+    let hmonitor = unsafe { MonitorFromWindow(HWND(hwnd.0), MONITOR_DEFAULTTONEAREST) };
+
+    let mut dpi_x: u32 = 96;
+    let mut dpi_y: u32 = 96;
+
+    unsafe {
+        let _ = GetDpiForMonitor(
+            hmonitor,
+            MDT_EFFECTIVE_DPI,
+            &mut dpi_x,
+            &mut dpi_y,
+        );
+    }
+
+    // Standard DPI is 96, so scale = dpi / 96
+    Ok(dpi_x as f64 / 96.0)
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn get_monitor_dpi_for_window(_window: &WebviewWindow) -> Result<f64, String> {
+    // Default 1.0 for non-Windows
+    Ok(1.0)
+}
+
+/// Get the work area (excluding taskbar) for the monitor containing the window
+#[allow(dead_code)]
+#[cfg(target_os = "windows")]
+pub fn get_monitor_work_area(window: &WebviewWindow) -> Result<(i32, i32, i32, i32), String> {
+    use windows::{
+        Win32::Graphics::Gdi::{MonitorFromWindow, MONITOR_DEFAULTTONEAREST},
+        Win32::UI::WindowsAndMessaging::{GetMonitorInfoW, MONITORINFOEXW},
+    };
+
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?;
+    let hmonitor = unsafe { MonitorFromWindow(HWND(hwnd.0), MONITOR_DEFAULTTONEAREST) };
+
+    let mut info: MONITORINFOEXW = unsafe { std::mem::zeroed() };
+    info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
+
+    unsafe {
+        GetMonitorInfoW(hmonitor, &mut info.monitorInfo);
+    }
+
+    let rc = &info.monitorInfo.rcWork;
+    Ok((rc.left, rc.top, rc.right, rc.bottom))
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn get_monitor_work_area(_window: &WebviewWindow) -> Result<(i32, i32, i32, i32), String> {
+    Ok((0, 0, 1920, 1080))
+}
