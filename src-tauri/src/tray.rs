@@ -100,10 +100,12 @@ pub fn handle_tray_event(app: &AppHandle, event_id: &str) {
             let _ = app.emit("tray:toggle-mute", new);
         }
         "settings" => {
-            // TODO: Open settings window
+            let _ = crate::settings::create_settings_window(app);
         }
         "about" => {
-            let _ = app.emit("tray:about", "");
+            // Emit about event with app version — does NOT restart the app
+            let version = app.package_info().version.to_string();
+            let _ = app.emit("tray:about", version);
         }
         "quit" => {
             app.exit(0);
