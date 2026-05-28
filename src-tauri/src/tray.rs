@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 pub static PET_VISIBLE: AtomicBool = AtomicBool::new(true);
 pub static FOLLOW_MOUSE: AtomicBool = AtomicBool::new(false);
+pub static SOUND_MUTE: AtomicBool = AtomicBool::new(false);
 
 pub fn create_tray_icon(_app: &AppHandle) -> Result<Image<'static>, Box<dyn std::error::Error>> {
     // Create a simple 64x64 orange fox icon from RGBA pixels
@@ -44,7 +45,7 @@ pub fn build_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, Box<dyn std:
         "Show Pet",
         true,
         PET_VISIBLE.load(Ordering::Relaxed),
-        None::<&str>,
+        Some("Show or hide the fox pet"),
     )?;
     let follow_toggle = CheckMenuItem::with_id(
         app,
@@ -52,13 +53,21 @@ pub fn build_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, Box<dyn std:
         "Follow Mouse",
         true,
         FOLLOW_MOUSE.load(Ordering::Relaxed),
-        None::<&str>,
+        Some("Fox follows your mouse cursor"),
     )?;
-    let settings = MenuItem::with_id(app, "settings", "Settings...", true, None::<&str>)?;
-    let about = MenuItem::with_id(app, "about", "About", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let mute_toggle = CheckMenuItem::with_id(
+        app,
+        "toggle_mute",
+        "Mute Sounds",
+        true,
+        SOUND_MUTE.load(Ordering::Relaxed),
+        Some("Mute all sound effects"),
+    )?;
+    let settings = MenuItem::with_id(app, "settings", "Settings...", true, Some("Open settings window"))?;
+    let about = MenuItem::with_id(app, "about", "About", true, Some("Show app version and info"))?;
+    let quit = MenuItem::with_id(app, "quit", "Quit", true, Some("Exit ScreenFox"))?;
 
-    let menu = Menu::with_items(app, &[&visible_toggle, &follow_toggle, &settings, &about, &quit])?;
+    let menu = Menu::with_items(app, &[&visible_toggle, &follow_toggle, &mute_toggle, &settings, &about, &quit])?;
 
     Ok(menu)
 }
@@ -84,11 +93,17 @@ pub fn handle_tray_event(app: &AppHandle, event_id: &str) {
             FOLLOW_MOUSE.store(new, Ordering::Relaxed);
             let _ = app.emit("tray:toggle-follow", new);
         }
+        "toggle_mute" => {
+            let current = SOUND_MUTE.load(Ordering::Relaxed);
+            let new = !current;
+            SOUND_MUTE.store(new, Ordering::Relaxed);
+            let _ = app.emit("tray:toggle-mute", new);
+        }
         "settings" => {
             // TODO: Open settings window
         }
         "about" => {
-            let _ = tauri::process::restart(&app.env());
+            let _ = app.emit("tray:about", "");
         }
         "quit" => {
             app.exit(0);
